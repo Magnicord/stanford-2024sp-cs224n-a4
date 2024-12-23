@@ -7,6 +7,7 @@
 import argparse
 import utils
 
+
 def main():
     accuracy = 0.0
 
@@ -17,7 +18,8 @@ def main():
 
     return accuracy
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     accuracy = main()
     with open("london_baseline_accuracy.txt", "w", encoding="utf-8") as f:
         f.write(f"{accuracy}\n")
