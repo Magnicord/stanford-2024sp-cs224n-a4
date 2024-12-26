@@ -13,7 +13,14 @@ def main():
 
     # Compute accuracy in the range [0.0, 100.0]
     ### YOUR CODE HERE ###
-    pass
+    DEV_FILE = "birth_dev.tsv"
+    # Count the lines of the file
+    with open(DEV_FILE, "r", encoding="utf-8") as f:
+        n_lines = len(f.readlines())
+    # Generate a list of "London" for each line
+    preds = ["London"] * n_lines
+    total, correct = utils.evaluate_places(DEV_FILE, preds)
+    accuracy = correct / total * 100
     ### END YOUR CODE ###
 
     return accuracy
