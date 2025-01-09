@@ -38,7 +38,13 @@ def precompute_rotary_emb(dim, max_positions):
     rope_cache = None
     # TODO: [part g]
     ### YOUR CODE HERE ###
-    pass
+    i = torch.arange(dim // 2, dtype=torch.float32)  # 0 ~ dim//2-1
+    theta_i: torch.Tensor = 1 / 10000 ** (2 * i / dim)  # (dim//2,)
+    t = torch.arange(max_positions, dtype=torch.float32)  # 0 ~ max_positions-1
+    t_theta: torch.Tensor = t.unsqueeze(-1) * theta_i  # (max_positions, dim//2)
+    cos = torch.cos(t_theta)  # (max_positions, dim//2)
+    sin = torch.sin(t_theta)  # (max_positions, dim//2)
+    rope_cache = torch.stack((cos, sin), dim=-1)  # (max_positions, dim//2, 2)
     ### END YOUR CODE ###
     return rope_cache
 
@@ -58,7 +64,22 @@ def apply_rotary_emb(x, rope_cache):
 
     rotated_x = None
     ### YOUR CODE HERE ###
-    pass
+    B, H, T, D = x.size()  # (batch_size, num_heads, seq_len, head_dim)
+    max_positions = rope_cache.size(0)
+    # Truncate the precomputed values
+    if T < max_positions:
+        rope_cache = rope_cache[:T]
+    # Convert `x` and `rope_cache` to complex tensor
+    x = x.reshape(B, H, T, D // 2, 2)  # (B, H, T, D//2, 2)
+    x_complex = torch.view_as_complex(x)  # (B, H, T, D//2)
+    rope_complex = torch.view_as_complex(rope_cache)  # (T, D//2)
+    # Adjust rope_complex dimensions for broadcasting
+    rope_complex = rope_complex.unsqueeze(0).unsqueeze(0)  # (1, 1, T, D//2)
+    # Apply RoPE: Hadamard product in complex space
+    rotated_x_complex = x_complex * rope_complex  # (B, H, T, D//2)
+    # Convert back to real tensor
+    rotated_x = torch.view_as_real(rotated_x_complex)  # (B, H, T, D//2, 2)
+    rotated_x = rotated_x.reshape(B, H, T, D)  # (B, H, T, D)
     ### END YOUR CODE ###
     return rotated_x
 
@@ -87,7 +108,10 @@ class CausalSelfAttention(nn.Module):
             # Hint: The maximum sequence length is given by config.block_size.
             rope_cache = None
             ### YOUR CODE HERE ###
-            pass
+            rope_cache = precompute_rotary_emb(
+                dim=config.n_embd // config.n_head,
+                max_positions=config.block_size,
+            )
             ### END YOUR CODE ###
 
             self.register_buffer("rope_cache", rope_cache)
@@ -129,7 +153,8 @@ class CausalSelfAttention(nn.Module):
         if self.rope:
             # TODO: [part g] Apply RoPE to the query and key.
             ### YOUR CODE HERE ###
-            pass
+            q = apply_rotary_emb(q, self.rope_cache)
+            k = apply_rotary_emb(k, self.rope_cache)
             ### END YOUR CODE ###
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
