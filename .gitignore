@@ -163,3 +163,5 @@ cython_debug/
 
 # For this project
 !docs/
+/mingpt-demo/dataset.py
+/mingpt-demo/input.txt
